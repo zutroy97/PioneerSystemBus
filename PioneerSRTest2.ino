@@ -25,12 +25,10 @@
 
 CmdCallback<3> cmdCallback;
 char strWrite[] = "W";
-char strPlus[] = "+";
-// Nano 328P
 
 // Breaks down the 32 bit value into
 // Pioneer specific bytes
-union pioneerPacket
+union PioneerPacket
 {
   unsigned long full;
   struct
@@ -42,11 +40,16 @@ union pioneerPacket
   };
 };
 
-union pioneerPacket packet;
-
-// populates the packet object for the device and command specified
-void makePacket(byte device, byte command)
+void MakeAndSend(byte device, byte command)
 {
+  union PioneerPacket packet;
+  packet = makePacket(device, command);
+  sendCode(packet);
+}
+
+PioneerPacket makePacket(byte device, byte command)
+{
+  union PioneerPacket packet;
   switch(device)
   {
     // Save some calculation for well known devices
@@ -59,6 +62,7 @@ void makePacket(byte device, byte command)
   }
   packet.command = Mirror(command);
   packet.commandChecksum = ~packet.command;
+  return packet;
 }
 
 // Return a byte which is a mirror image of the byte passed
@@ -84,21 +88,8 @@ void functWrite(CmdParser *myParser)
   Serial.print(raw);Serial.print(" byte:");
   byte c = (byte)raw.toInt();
   Serial.print(raw);Serial.print(" 0x");
-  Serial.print(c, HEX);
-  Serial.print(" mirror: 0x");Serial.println(Mirror(c));
-  makePacket(0xA4, c);sendCode(packet.full);
-}
-
-void functPlus(CmdParser *myParser)
-{
-  byte c = 0;
-  c |= (1 << 7);
   Serial.println(c, HEX);
-  packet.device = 0x25;
-  packet.deviceChecksum = 0xDA;
-  packet.command = 0x6A;
-  packet.commandChecksum = 0x95;
-  sendCode(packet.full);
+  MakeAndSend(PIONEER_TUNER, c);
 }
 
 void setup() {
@@ -106,7 +97,6 @@ void setup() {
   Serial.begin(9600);
   digitalWrite(11, 0); // Make sure we are off
   cmdCallback.addCmd(strWrite, &functWrite);
-  cmdCallback.addCmd(strPlus, &functPlus);
   Serial.println("Ready");
 }
 
@@ -118,23 +108,24 @@ void loop() {
 
 // Send the raw 32 bit command
 //TODO: Can this use timer interrupt?
-void sendCode(unsigned long command)
+void sendCode(PioneerPacket packet)
 {
   byte i = 0;
+  unsigned long raw = packet.full;
   //Serial.print("Sending Command: 0x");Serial.println(command, HEX);
   
   sendPulse(HDR_MARK);
   delayMicroseconds(HDR_PAUSE); // Start Pulse
   for (i=0; i < 32; i++){
     sendPulse(BIT_MARK);
-    if (command & 0x80000000){
+    if (raw & 0x80000000){
       delayMicroseconds(ONE_PAUSE);
       //Serial.print("1");
     }else{
       delayMicroseconds(ZERO_PAUSE);
       //Serial.print("0");
     }
-    command = command << 1;
+    raw = raw << 1;
   }
   sendPulse(BIT_MARK);
 }
