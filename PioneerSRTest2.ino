@@ -28,28 +28,28 @@ char strWrite[] = "W";
 char strPlus[] = "+";
 // Nano 328P
 
+// Breaks down the 32 bit value into
+// Pioneer specific bytes
 union pioneerPacket
 {
   unsigned long full;
   struct
   {
-    byte commandChecksum;
-    byte command;
-    byte deviceChecksum;
-    byte device;
+    byte commandChecksum; // Calculated by makePacket
+    byte command; // Command to send. ex. KEY_FM
+    byte deviceChecksum; // Calculated by makePacket
+    byte device; // ex. PIONEER_TUNER
   };
 };
 
 union pioneerPacket packet;
 
-#define NUM_COMMANDS 2
-unsigned long commands[NUM_COMMANDS] = {KEY_AM, KEY_FM};
-
-byte mirroredLookup[8] = {7,6,5,4,3,2,1,0};
+// populates the packet object for the device and command specified
 void makePacket(byte device, byte command)
 {
   switch(device)
   {
+    // Save some calculation for well known devices
     case PIONEER_TUNER:
       packet.device = 0x25;
       packet.deviceChecksum = 0xDA;
@@ -61,10 +61,11 @@ void makePacket(byte device, byte command)
   packet.commandChecksum = ~packet.command;
 }
 
-
-
+// Return a byte which is a mirror image of the byte passed
+// example b1100 0010 mirrored is b0100 0011
 byte Mirror(byte b)
 {
+  static byte mirroredLookup[8] = {7,6,5,4,3,2,1,0};
     byte result = 0;
     for (byte i = 0; i < 8; i++)
     {
@@ -98,64 +99,41 @@ void functPlus(CmdParser *myParser)
   packet.command = 0x6A;
   packet.commandChecksum = 0x95;
   sendCode(packet.full);
-  
 }
+
 void setup() {
-  // put your setup code here, to run once:
   pinMode(11, OUTPUT);
   Serial.begin(9600);
-  digitalWrite(11, 0);
+  digitalWrite(11, 0); // Make sure we are off
   cmdCallback.addCmd(strWrite, &functWrite);
   cmdCallback.addCmd(strPlus, &functPlus);
   Serial.println("Ready");
 }
 
-void AmFmLoop()
-{
-  Serial.println("Sending AM");
-  makePacket(0xA4, 0x0E);sendCode(packet.full);
-  delay(5000);
-  Serial.println("Sending FM");
-  makePacket(0xA4, 0x0D);sendCode(packet.full);
-  delay(5000);  
-}
 void loop() {
   CmdBuffer<32> myBuffer;
   CmdParser     myParser;
-  //AmFmLoop();
   cmdCallback.loopCmdProcessing(&myParser, &myBuffer, &Serial);
-  //sendAllTheCodes();
-
 }
 
-void sendAllTheCodes()
-{
-  for (int i = 0x0A; i < 0x0F; i++)
-  {
-    makePacket(0xA4, (byte)i);
-    Serial.print(i);Serial.print(") ");
-    sendCode(packet.full);
-    delay(2000);
-  }
-}
+// Send the raw 32 bit command
+//TODO: Can this use timer interrupt?
 void sendCode(unsigned long command)
 {
   byte i = 0;
-  Serial.print("Sending Command: 0x");Serial.println(command, HEX);
+  //Serial.print("Sending Command: 0x");Serial.println(command, HEX);
   
   sendPulse(HDR_MARK);
-  delayMicroseconds(HDR_PAUSE);
+  delayMicroseconds(HDR_PAUSE); // Start Pulse
   for (i=0; i < 32; i++){
     sendPulse(BIT_MARK);
     if (command & 0x80000000){
       delayMicroseconds(ONE_PAUSE);
       //Serial.print("1");
-    }
-    else{
+    }else{
       delayMicroseconds(ZERO_PAUSE);
       //Serial.print("0");
     }
-
     command = command << 1;
   }
   sendPulse(BIT_MARK);
@@ -164,7 +142,8 @@ void sendCode(unsigned long command)
 void sendPulse(unsigned int microseconds)
 {
   //digitalWrite(LED_BUILTIN, 1);
-  PORTB |= 0x20;
+  //TODO: Test if digitalWrite is fast enought
+  PORTB |= 0x20; // Faster then digitalWrite;
   delayMicroseconds(microseconds);
   //digitalWrite(LED_BUILTIN, 0);
   PORTB &= 0xDF;

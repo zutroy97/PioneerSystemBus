@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "/Users/simonbs/Library/Arduino15/packages/arduino/hardware/avr/1.6.19/cores/arduino",
+                "/Users/simonbs/Documents/Arduino/libraries/CmdParser/src"
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": false,
+                "path": [
+                    "/Users/simonbs/Library/Arduino15/packages/arduino/hardware/avr/1.6.19/cores/arduino",
+                    "/Users/simonbs/Documents/Arduino/libraries/CmdParser/src"
+                ]
+            },
+            "intelliSenseMode": "clang-x64",
+            "macFrameworkPath": [
+                "/System/Library/Frameworks",
+                "/Library/Frameworks"
+            ]
+        }
+    ],
+    "version": 3
+}
