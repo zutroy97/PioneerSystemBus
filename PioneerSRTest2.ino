@@ -26,8 +26,7 @@
 CmdCallback<3> cmdCallback;
 char strWrite[] = "W";
 
-// Breaks down the 32 bit value into
-// Pioneer specific bytes
+// Breaks down the 32 bit value into Pioneer specific bytes
 union PioneerPacket
 {
   unsigned long full;
@@ -40,14 +39,16 @@ union PioneerPacket
   };
 };
 
-void MakeAndSend(byte device, byte command)
+// Creates the Pioneer packet for the device and command given, then sends.
+void Send(byte device, byte command)
 {
   union PioneerPacket packet;
-  packet = makePacket(device, command);
+  packet = MakePacket(device, command);
   sendCode(packet);
 }
 
-PioneerPacket makePacket(byte device, byte command)
+// Returns the packet for the device and command given.
+PioneerPacket MakePacket(byte device, byte command)
 {
   union PioneerPacket packet;
   switch(device)
@@ -66,21 +67,22 @@ PioneerPacket makePacket(byte device, byte command)
 }
 
 // Return a byte which is a mirror image of the byte passed
-// example b1100 0010 mirrored is b0100 0011
+// example 1100 0010 mirrored is 0100 0011
 byte Mirror(byte b)
 {
   static byte mirroredLookup[8] = {7,6,5,4,3,2,1,0};
-    byte result = 0;
-    for (byte i = 0; i < 8; i++)
-    {
-        if ((b & (1 << i)) > 0)
-        {
-            result |= (byte)(1 << mirroredLookup[i]);
-        }
-    }
-    return result;
+  byte result = 0;
+  for (byte i = 0; i < 8; i++)
+  {
+      if ((b & (1 << i)) > 0)
+      {
+          result |= (byte)(1 << mirroredLookup[i]);
+      }
+  }
+  return result;
 }
 
+// Sends a command (number/byte) entered on the command line to a connected Pioneer Tuner
 void functWrite(CmdParser *myParser)
 {
   Serial.print("Received Command ");
@@ -89,7 +91,7 @@ void functWrite(CmdParser *myParser)
   byte c = (byte)raw.toInt();
   Serial.print(raw);Serial.print(" 0x");
   Serial.println(c, HEX);
-  MakeAndSend(PIONEER_TUNER, c);
+  Send(PIONEER_TUNER, c);
 }
 
 void setup() {
@@ -106,7 +108,7 @@ void loop() {
   cmdCallback.loopCmdProcessing(&myParser, &myBuffer, &Serial);
 }
 
-// Send the raw 32 bit command
+// protected function - Send the Pioneer Packet
 //TODO: Can this use timer interrupt?
 void sendCode(PioneerPacket packet)
 {
@@ -130,6 +132,7 @@ void sendCode(PioneerPacket packet)
   sendPulse(BIT_MARK);
 }
 
+// protected function
 void sendPulse(unsigned int microseconds)
 {
   //digitalWrite(LED_BUILTIN, 1);
